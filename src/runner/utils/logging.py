@@ -4,6 +4,7 @@ from typing import Optional
 import os
 from datetime import datetime, timezone, timedelta
 
+
 class TimeZoneFormatter(logging.Formatter):
     r"""
     Custom logging formatter that converts UTC time to local time.
@@ -28,7 +29,7 @@ class TimeZoneFormatter(logging.Formatter):
 
 def get_logger(name: str,
                logger_path: Optional[str] = None,
-               tz_offset: Optional[int] = 0
+               tz_offset: Optional[int] = None,
                ) -> logging.Logger:
     r"""
     Return a standard logger with a stream handler to stdout and a file 
@@ -36,6 +37,9 @@ def get_logger(name: str,
     'tz_offset' is the time zone offset in hours, default to 0, which 
     corresponds to UTC.
     """
+
+    if tz_offset is None:
+        tz_offset = int(os.getenv('TZ_OFFSET', 0))
 
     formatter = TimeZoneFormatter(
         fmt="%(asctime)s - %(levelname)s - %(name)s - %(message)s", 

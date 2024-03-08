@@ -58,9 +58,9 @@ class PeftArguments:
 
 
 @dataclass
-class _TrainingArguments(PeftArguments):
+class CustomTrainingArguments(PeftArguments):
     r"""
-    Customized additional training arguments.
+    Custom additional training arguments.
     """
 
     task: Optional[Literal["pt", "sft"]] = field(
@@ -70,6 +70,12 @@ class _TrainingArguments(PeftArguments):
     training_mode: Optional[Literal["full", "peft"]] = field(
         default="full",
         metadata={"help": "Which training mode to perform. It should be one of {`full`, `peft`}."}
+    )
+    model_max_length: int = field(
+        default=4096,
+        metadata={
+            "help": "Maximum sequence length. Sequences will be right padded (and possibly truncated)."
+            }
     )
     plot_loss: Optional[bool] = field(
         default=True,
@@ -93,7 +99,7 @@ class _TrainingArguments(PeftArguments):
     @classmethod
     def load_from_json(cls, json_path: str):
         r"""
-        Initialize a new instance of _TrainingArguments from a JSON file.
+        Initialize a new instance of CustomTrainingArguments from a JSON file.
         """
         with open(json_path, "r", encoding="utf-8") as f:
             text = f.read()

@@ -78,8 +78,8 @@ class DataArguments:
         if self.reserved_label_len >= self.cutoff_len:
             raise ValueError("`reserved_label_len` must be smaller than `cutoff_len`.")
 
-        if self.streaming and self.val_size > 1e-6 and self.val_size < 1:
-            raise ValueError("Streaming mode should have an integer val size.")
+        # if self.dataset_streaming and self.val_size > 1e-6 and self.val_size < 1:
+        #     raise ValueError("Streaming mode should have an integer val size.")
 
-        if self.streaming and self.max_samples is not None:
-            raise ValueError("`max_samples` is incompatible with `streaming`.")
+        if self.dataset_streaming and self.max_samples is not None:
+            raise ValueError("`max_samples` is incompatible with `dataset_streaming`.")

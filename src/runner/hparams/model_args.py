@@ -22,6 +22,24 @@ class ModelArguments:
             "help": "Where to save the models downloaded."
         }
     )
+    trust_remote_code: bool = field(
+        default=True,
+        metadata={
+            "help": "Whethe to allow for custom models defined on the Hub in their own modeling files"
+            }
+    )
+    load_in_8bit: bool = field(
+        default=False,
+        metadata={
+            "help": "Whether to enable 8-bit quantization with LLM.int8()."
+            }
+    )
+    load_in_4bit: bool = field(
+        default=False,
+        metadata={
+            "help": "Whether to enable 4-bit quantization by replacing the Linear layers with FP4/NF4 layers from bitsandbytes."
+            }
+    )
     use_fast_tokenizer: Optional[bool] = field(
         default=False,
         metadata={
