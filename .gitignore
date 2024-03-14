@@ -2,6 +2,7 @@ data/*
 !data/**/*.py
 !data/**/*.md
 
+logs
 *.log
 
 # Byte-compiled / optimized / DLL files

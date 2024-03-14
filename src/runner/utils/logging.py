@@ -3,6 +3,7 @@ import sys
 from typing import Optional
 import os
 from datetime import datetime, timezone, timedelta
+from termcolor import colored
 
 
 class TimeZoneFormatter(logging.Formatter):
@@ -27,6 +28,7 @@ class TimeZoneFormatter(logging.Formatter):
         else:
             return dt.isoformat(timespec='milliseconds')
 
+
 def get_logger(name: str,
                logger_path: Optional[str] = None,
                tz_offset: Optional[int] = None,
@@ -41,18 +43,19 @@ def get_logger(name: str,
     if tz_offset is None:
         tz_offset = int(os.getenv('TZ_OFFSET', 0))
 
+    # output colored log to console
     formatter = TimeZoneFormatter(
         fmt="%(asctime)s - %(levelname)s - %(name)s - %(message)s", 
         datefmt="%m/%d/%Y %H:%M:%S",
         tz_offset=tz_offset
     )
 
-    handler = logging.StreamHandler(sys.stdout)
-    handler.setFormatter(formatter)
+    console_handler = logging.StreamHandler(sys.stdout)
+    console_handler.setFormatter(formatter)
 
     logger = logging.getLogger(name)
     logger.setLevel(logging.INFO)
-    logger.addHandler(handler)
+    logger.addHandler(console_handler)
 
     if logger_path is not None:
         # Create the log file if it does not exist

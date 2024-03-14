@@ -1,138 +1,84 @@
-from typing import TYPE_CHECKING, Any, Dict, Optional, Tuple
+from typing import Any, Dict, Optional, Tuple
+import torch
+from transformers import (
+    AutoConfig,
+    AutoModelForCausalLM,
+    AutoTokenizer,
+    PreTrainedModel,
+    PreTrainedTokenizer,
+)
+from ..hparams import CustomTrainingArguments, ModelArguments
+from ..utils.logging import get_logger
+from .utils import count_parameters
+from termcolor import colored
 
-from transformers import AutoConfig, AutoModelForCausalLM, AutoTokenizer
 
+logger = get_logger(__name__)
 
-
-
-if TYPE_CHECKING:
-    from transformers import PreTrainedModel, PreTrainedTokenizer
-
-    from ..hparams import FinetuningArguments, ModelArguments
 
 def _get_init_kwargs(model_args: ModelArguments) -> Dict[str, Any]:
+    r"""
+    Extracts the init kwargs from model_args for loading model.
+    """
     return {
-        "trust_remote_code": True,
-        "cache_dir": model_args.cache_dir,
-        "revision": model_args.model_revision,
-        "token": model_args.hf_hub_token,
+        "load_in_8bit": model_args.quantization_n_bit == 8,
+        "load_in_4bit": model_args.quantization_n_bit == 4,
     }
+
 
 def load_tokenizer(model_args: ModelArguments) -> PreTrainedTokenizer:
     r"""
-    Load the pretrained tokenizer.
-    load_tokenizer() must be called before load_model().
-    Note: including inplace operation of model_args.
+    Loads pretrained tokenizer.
     """
-    # try_download_model_from_ms(model_args)
-    init_kwargs = _get_init_kwargs(model_args)
+    logger.info(f"Loading tokenizer from {model_args.model_name_or_path}...")
 
     tokenizer = AutoTokenizer.from_pretrained(
         model_args.model_name_or_path,
-        use_fast=model_args.use_fast_tokenizer,
-        split_special_tokens=model_args.split_special_tokens,
-        padding_side="right",
-        **init_kwargs,
+        cache_dir=model_args.cache_dir,
+        trust_remote_code=model_args.trust_remote_code,
+        use_fast=model_args.use_fast_tokenizer
     )
-
+    
     return tokenizer
 
 
-def load_model(
-    tokenizer: PreTrainedTokenizer,
-    model_args: ModelArguments,
-    finetuning_args: FinetuningArguments,
-    is_trainable: Optional[bool] = False,
-    add_valuehead: Optional[bool] = False,
-) -> "PreTrainedModel":
+def load_model(model_args: ModelArguments) -> PreTrainedModel:
     r"""
-    Loads pretrained model. Must after load_tokenizer.
+    Loads pretrained model.
     """
+    logger.info(f"Loading model from {model_args.model_name_or_path}...")
+
+    config = AutoConfig.from_pretrained(
+        model_args.model_name_or_path,
+        trust_remote_code=model_args.trust_remote_code,
+        cache_dir=model_args.cache_dir,
+    )
+
     init_kwargs = _get_init_kwargs(model_args)
-    config = AutoConfig.from_pretrained(model_args.model_name_or_path, **init_kwargs)
-    patch_config(config, tokenizer, model_args, init_kwargs, is_trainable)
+    
+    model = AutoModelForCausalLM.from_pretrained(
+            model_args.model_name_or_path,
+            config=config,
+            cache_dir=model_args.cache_dir,
+            trust_remote_code=model_args.trust_remote_code,
+            torch_dtype=model_args.torch_dtype,
+            **init_kwargs,
+    )
 
-    model = None
-    if is_trainable and model_args.use_unsloth:
-        from unsloth import FastLanguageModel  # type: ignore
+    # TODO (zny): Add support for peft model
 
-        unsloth_kwargs = {
-            "model_name": model_args.model_name_or_path,
-            "max_seq_length": model_args.model_max_length,
-            "dtype": model_args.compute_dtype,
-            "load_in_4bit": model_args.quantization_bit == 4,
-            "token": model_args.hf_hub_token,
-            "device_map": {"": get_current_device()},
-            "rope_scaling": getattr(config, "rope_scaling", None),
-        }
-        try:
-            model, _ = FastLanguageModel.from_pretrained(**unsloth_kwargs)
-        except NotImplementedError:
-            logger.warning("Unsloth does not support model type {}.".format(getattr(config, "model_type", None)))
-            model_args.use_unsloth = False
-
-        if model_args.adapter_name_or_path:
-            model_args.adapter_name_or_path = None
-            logger.warning("Unsloth does not support loading adapters.")
-
-    if model is None:
-        model = AutoModelForCausalLM.from_pretrained(model_args.model_name_or_path, config=config, **init_kwargs)
-
-    patch_model(model, tokenizer, model_args, is_trainable)
-    register_autoclass(config, model, tokenizer)
-
-    model = init_adapter(model, model_args, finetuning_args, is_trainable)
-
-    if add_valuehead:
-        model: "AutoModelForCausalLMWithValueHead" = AutoModelForCausalLMWithValueHead.from_pretrained(model)
-        patch_valuehead_model(model)
-
-        if model_args.adapter_name_or_path is not None:
-            vhead_path = model_args.adapter_name_or_path[-1]
-        else:
-            vhead_path = model_args.model_name_or_path
-
-        vhead_params = load_valuehead_params(vhead_path, model_args)
-        if vhead_params is not None:
-            model.load_state_dict(vhead_params, strict=False)
-            logger.info("Loaded valuehead from checkpoint: {}".format(vhead_path))
-
-    if not is_trainable:
-        model.requires_grad_(False)
-        model = model.to(model_args.compute_dtype) if not getattr(model, "quantization_method", None) else model
-        model.eval()
-    else:
-        model.train()
-
-    trainable_params, all_param = count_parameters(model)
-    if is_trainable:
-        param_stats = "trainable params: {:d} || all params: {:d} || trainable%: {:.4f}".format(
-            trainable_params, all_param, 100 * trainable_params / all_param
-        )
-    else:
-        param_stats = "all params: {:d}".format(all_param)
-    logger.info(param_stats)
-
-    if model_args.print_param_status:
-        for name, param in model.named_parameters():
-            print(
-                "name: {}, dtype: {}, device: {}, trainable: {}".format(
-                    name, param.dtype, param.device, param.requires_grad
-                )
-            )
+    trainable_params, total_params = count_parameters(model)
+    logger.info(f"Trainable parameters: {trainable_params}, Total parameters: {total_params}")
 
     return model
 
 
 def load_model_and_tokenizer(
-    model_args: "ModelArguments",
-    finetuning_args: "FinetuningArguments",
-    is_trainable: Optional[bool] = False,
-    add_valuehead: Optional[bool] = False,
-) -> Tuple["PreTrainedModel", "PreTrainedTokenizer"]:
+    model_args: ModelArguments,
+) -> Tuple[PreTrainedModel, PreTrainedTokenizer]:
     r"""
     Loads pretrained model and tokenizer.
     """
     tokenizer = load_tokenizer(model_args)
-    model = load_model(tokenizer, model_args, finetuning_args, is_trainable, add_valuehead)
+    model = load_model(model_args)
     return model, tokenizer

@@ -6,80 +6,33 @@ class DataArguments:
     
     template: Optional[str] = field(
         default=None,
-        metadata={"help": "Which template to use for formatting the data."}
+        metadata={"help": "Which template to use to format data."}
     )
-    dataset: Optional[str] = field(
+    train_dataset: Optional[str] = field(
         default=None,
-        metadata={"help": "The name of provided dataset(s) to use. Use commas to separate multiple datasets."}
+        metadata={"help": "The name of provided dataset(s) to use for training."}
     )
-    dataset_dir: Optional[str] = field(
-        default="data",
-        metadata={"help": "Path to the dataset folder."}
-    )
-    split: Optional[str] = field(
-        default="train",
-        metadata={"help": "Which dataset split to use for training and evaluation."}    )
-    cutoff_len: Optional[int] = field(
-        default=4096,
-        metadata={"help": "The cutoff length of the model inputs after tokenization."},
-    )
-    reserved_label_len: Optional[int] = field(
-        default=1,
-        metadata={"help": "The minimum cutoff length reserved for label after tokenization."},
+    eval_dataset: Optional[str] = field(
+        default=None,
+        metadata={"help": "The name of provided dataset(s) to use for evaluation."}
     )
     dataset_streaming: Optional[bool] = field(
         default=True,
-        metadata={"help": "Enable dataset streaming."},
+        metadata={"help": "Whether or not to enable dataset streaming."}
     )
-    mix_strategy: Optional[Literal["concat", "interleave_under", "interleave_over"]] = field(
-        default="concat",
-        metadata={"help": "Strategy to use in dataset mixing (concat/interleave) (undersampling/oversampling)."},
-    )
-    interleave_probs: Optional[str] = field(
+    train_max_samples: Optional[int] = field(
         default=None,
-        metadata={"help": "Probabilities to sample data from datasets. Use commas to separate multiple datasets."},
+        metadata={"help": "For debugging purposes, truncate the train dataset to this number of samples."}
     )
-    overwrite_cache: Optional[bool] = field(
-        default=False,
-        metadata={"help": "Overwrite the cached training and evaluation sets."},
-    )
-    preprocessing_num_workers: Optional[int] = field(
+    eval_max_samples: Optional[int] = field(
         default=None,
-        metadata={"help": "The number of processes to use for the preprocessing."},
-    )
-    max_samples: Optional[int] = field(
-        default=None,
-        metadata={"help": "For debugging purposes, truncate the number of examples for each dataset."},
-    )
-    eval_num_beams: Optional[int] = field(
-        default=None,
-        metadata={"help": "Number of beams to use for evaluation. This argument will be passed to `model.generate`"},
-    )
-    ignore_pad_token_for_loss: Optional[bool] = field(
-        default=True,
-        metadata={
-            "help": "Whether or not to ignore the tokens corresponding to padded labels in the loss computation."
-        },
-    )
-    val_size: Optional[float] = field(
-        default=0,
-        metadata={"help": "Size of the development set, should be an integer or a float in range `[0,1)`."},
+        metadata={"help": "For debugging purposes, truncate the eval dataset to this number of samples."}
     )
     sft_packing: Optional[bool] = field(
         default=False,
-        metadata={"help": "Packing the questions and answers in the supervised fine-tuning stage."},
-    )
-    cache_path: Optional[str] = field(
-        default=None,
-        metadata={"help": "Path to save or load the preprocessed datasets."},
+        metadata={"help": "Whether or not to pack the dataset for SFT training to improve training efficiency."}
     )
 
     def __post_init__(self):
-        if self.reserved_label_len >= self.cutoff_len:
-            raise ValueError("`reserved_label_len` must be smaller than `cutoff_len`.")
-
-        # if self.dataset_streaming and self.val_size > 1e-6 and self.val_size < 1:
-        #     raise ValueError("Streaming mode should have an integer val size.")
-
-        if self.dataset_streaming and self.max_samples is not None:
-            raise ValueError("`max_samples` is incompatible with `dataset_streaming`.")
+        
+        pass

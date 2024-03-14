@@ -1,25 +1,18 @@
 from dataclasses import asdict, dataclass, field
-from typing import Any, Dict, Literal, Optional
+from typing import Any, Dict, Optional
+import torch
+from runner.utils.logging import get_logger
+
+logger = get_logger(__name__)
 
 @dataclass
 class ModelArguments:
-
+    
+    # Loading arguments
     model_name_or_path: str = field(
         default="t5-small",
         metadata={
             "help": "Path to the model dir or identifier from huggingface.co/models."
-        }
-    )
-    adapter_name_or_path: Optional[str] = field(
-        default=None,
-        metadata={
-            "help": "Path to the adapter dir or identifier from huggingface.co/models."
-        }
-    )
-    cache_dir: Optional[str] = field(
-        default=None,
-        metadata={
-            "help": "Where to save the models downloaded."
         }
     )
     trust_remote_code: bool = field(
@@ -28,132 +21,43 @@ class ModelArguments:
             "help": "Whethe to allow for custom models defined on the Hub in their own modeling files"
             }
     )
-    load_in_8bit: bool = field(
-        default=False,
+    torch_dtype: Optional[str] = field(
+        default=None,
         metadata={
-            "help": "Whether to enable 8-bit quantization with LLM.int8()."
-            }
-    )
-    load_in_4bit: bool = field(
-        default=False,
-        metadata={
-            "help": "Whether to enable 4-bit quantization by replacing the Linear layers with FP4/NF4 layers from bitsandbytes."
-            }
-    )
-    use_fast_tokenizer: Optional[bool] = field(
-        default=False,
-        metadata={
-            "help": "Whether to use the fast tokenizers."
+            "help": "The data type to use for loading the model weights."
         }
     )
-    resize_vocab: Optional[bool] = field(
-        default=False,
+    cache_dir: Optional[str] = field(
+        default=None,
         metadata={
-            "help": "Whether to resize the tokenizer vocab and the embedding layers."
+            "help": "The directory to cache the model weights."
         }
     )
-    split_special_tokens: Optional[bool] = field(
-        default=False,
-        metadata={
-            "help": "Whether to split the special tokens during tokenization."
-        }
-    )
-    model_version: Optional[str] = field(
-        default="main",
-        metadata={
-            "help": "The specific model version to use (can be a branch name, tag name or commit id)."
-        }
-    )
+
+    # Quantization arguments
     quantization_n_bit: Optional[int] = field(
         default=None,
         metadata={
             "help": "Quantize the model to the specified data type."
         }
     )
-    quantization_type: Optional[Literal["fp4", "nf4"]] = field(
-        default="nf4",
-        metadata={"help": "Quantization data type to use in int4 training."},
-    )
-    double_quantization: Optional[bool] = field(
-        default=True,
-        metadata={"help": "Whether or not to use double quantization in int4 training."},
-    )
-    rope_scaling: Optional[Literal["linear", "dynamic"]] = field(
-        default=None,
-        metadata={"help": "Which scaling strategy should be adopted for the RoPE embeddings."},
-    )
-    flash_attn: Optional[bool] = field(
+    
+    # Tokenizer arguments
+    use_fast_tokenizer: Optional[bool] = field(
         default=False,
-        metadata={"help": "Enable FlashAttention-2 for faster training."},
-    )
-    shift_attn: Optional[bool] = field(
-        default=False,
-        metadata={"help": "Enable shift short attention (S^2-Attn) proposed by LongLoRA."},
-    )
-    use_unsloth: Optional[bool] = field(
-        default=False,
-        metadata={"help": "Whether or not to use unsloth's optimization for the LoRA training."},
-    )
-    disable_gradient_checkpointing: Optional[bool] = field(
-        default=False,
-        metadata={"help": "Whether or not to disable gradient checkpointing."},
-    )
-    upcast_layernorm: Optional[bool] = field(
-        default=False,
-        metadata={"help": "Whether or not to upcast the layernorm weights in fp32."},
-    )
-    upcast_lmhead_output: Optional[bool] = field(
-        default=False,
-        metadata={"help": "Whether or not to upcast the output of lm_head in fp32."},
-    )
-    export_dir: Optional[str] = field(
-        default=None,
-        metadata={"help": "Path to the directory to save the exported model."},
-    )
-    export_size: Optional[int] = field(
-        default=1,
-        metadata={"help": "The file shard size (in GB) of the exported model."},
-    )
-    export_quantization_bit: Optional[int] = field(
-        default=None,
-        metadata={"help": "The number of bits to quantize the exported model."},
-    )
-    export_quantization_dataset: Optional[str] = field(
-        default=None,
-        metadata={"help": "Path to the dataset or dataset name to use in quantizing the exported model."},
-    )
-    export_quantization_nsamples: Optional[int] = field(
-        default=128,
-        metadata={"help": "The number of samples used for quantization."},
-    )
-    export_quantization_maxlen: Optional[int] = field(
-        default=1024,
-        metadata={"help": "The maximum length of the model inputs used for quantization."},
-    )
-    export_legacy_format: Optional[bool] = field(
-        default=False,
-        metadata={"help": "Whether or not to save the `.bin` files instead of `.safetensors`."},
-    )
-    print_param_status: Optional[bool] = field(
-        default=False,
-        metadata={"help": "For debugging purposes, print the status of the parameters in the model."},
+        metadata={
+            "help": "Whether to use the fast tokenizers."
+        }
     )
 
     def __post_init__(self):
-        self.compute_dtype = None
-        self.model_max_length = None
 
-        if self.split_special_tokens and self.use_fast_tokenizer:
-            raise ValueError("`split_special_tokens` is only supported for slow tokenizers.")
-
-        if self.adapter_name_or_path is not None:  # support merging multiple lora weights
-            self.adapter_name_or_path = [path.strip() for path in self.adapter_name_or_path.split(",")]
-
-        assert self.quantization_n_bit in [None, 8, 4], "We only accept 4-bit or 8-bit quantization."
-        assert self.export_quantization_bit in [None, 8, 4, 3, 2], "We only accept 2/3/4/8-bit quantization."
-
-        if self.export_quantization_bit is not None and self.export_quantization_dataset is None:
-            raise ValueError("Quantization dataset is necessary for exporting.")
+        if self.quantization_n_bit is not None and self.torch_dtype is None:
+            self.torch_dtype = torch.float16
+            logger.warning("Overriding torch_dtype=None with `torch_dtype=torch. float16` due to requirements of `bitsandbytes` to enable model loading in 8-bit or 4-bit.")
+            
+        if not self.quantization_n_bit in [None, 8, 4]:
+            raise ValueError("`quantization_n_bit` can only be one of {None, 8, 4} as only 8-bit or 4-bit quantization is supported.")
 
     def to_dict(self) -> Dict[str, Any]:
         return asdict(self)

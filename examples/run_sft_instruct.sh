@@ -23,27 +23,27 @@ ARGS="  --task sft \
         --num_train_epochs 3.0 \
         --model_name_or_path $MODEL_PATH \
         --trust_remote_code True \
-        --load_in_8bit True \
+        --quantization_n_bit 8 \
         --model_max_length 4096 \
-        --dataset cnn_dailymail \
+        --train_dataset cnn_dailymail_train \
+        --eval_dataset cnn_dailymail_val \
         --template alpaca \
+        --seed 42 \
         --training_mode full \
-        --overwrite_cache \
         --per_device_train_batch_size 1 \
         --per_device_eval_batch_size 1 \
         --gradient_accumulation_steps $GRAD_ACCU_STEPS \
         --gradient_checkpointing True \
         --evaluation_strategy epoch \
         --save_strategy epoch \
+        --optim adamw_torch \
         --learning_rate 2e-5 \
         --lr_scheduler_type constant \
-        --attention_dropout 0.1 \
         --max_grad_norm 1.0 \
         --weight_decay 1e-2 \
         --warmup_steps 100 \
         --logging_steps 1 \
         --logging_dir tensorboards/${RUN_NAME} \
-        --plot_loss \
         --report_to none \
         --run_name ${RUN_NAME} \
         --output_dir outputs/${RUN_NAME} \

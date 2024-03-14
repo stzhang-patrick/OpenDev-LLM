@@ -1,5 +1,7 @@
 _parse_args 解析 yaml 和 json 测试
 
-chat demo 使用 huggingfce chatui
-
 https://github.com/allenai/fm-cheatsheet/blob/main/app/resources/paper.pdf
+
+device map + DP，例如，4张卡，每个进程拆到2张卡上，同时跑两个进程
+
+lora 训练： 初始化、merge、resume
