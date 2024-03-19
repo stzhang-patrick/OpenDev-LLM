@@ -4,32 +4,36 @@
 export TZ_OFFSET=8
 
 export NCCL_DEBUG=WARN
-export WANDB_API_KEY="8000b46f9e6b884da8f0e8cc46b3c53a31711b13"
+export WANDB_API_KEY=your_wandb_api_key
 export WANDB_ENTITY=frog-ai
 export WANDB_PROJECT=frogengine-test
 
-MODEL_PATH=/mnt/public/Qwen1.5-1.8B
+MODEL_PATH=/mnt/public/Qwen1.5-0.5B
 GLOBAL_BATCH_SIZE=16
 LOCAL_BATCH_SIZE=1
 WORLD_SIZE=1
 GRAD_ACCU_STEPS=$(($GLOBAL_BATCH_SIZE / $LOCAL_BATCH_SIZE / $WORLD_SIZE))
-RUN_NAME=sft_qwen1.5_1.8b
+RUN_NAME=sft_qwen1.5_0.5B
 
-cd /mnt/proj/workspace/FrogEngine
+DATA_PATH=/mnt/proj/workspace/OpenDev-LLM/data/cnn_dailymail_hf_instruct
+
+cd /mnt/proj/workspace/OpenDev-LLM
 
 ARGS="  --task sft \
+        --mode full \
         --do_train \
         --do_eval \
-        --num_train_epochs 3.0 \
         --model_name_or_path $MODEL_PATH \
         --trust_remote_code True \
-        --quantization_n_bit 8 \
-        --model_max_length 4096 \
-        --train_dataset cnn_dailymail_train \
-        --eval_dataset cnn_dailymail_val \
+        --max_seq_length 4096 \
+        --dataset_name_or_path $DATA_PATH \
+        --train_split train \
+        --eval_split validation \
+        --max_train_samples 500 \
+        --max_eval_samples 50 \
         --template alpaca \
+        --num_train_epochs 3.0 \
         --seed 42 \
-        --training_mode full \
         --per_device_train_batch_size 1 \
         --per_device_eval_batch_size 1 \
         --gradient_accumulation_steps $GRAD_ACCU_STEPS \
@@ -47,10 +51,9 @@ ARGS="  --task sft \
         --report_to none \
         --run_name ${RUN_NAME} \
         --output_dir outputs/${RUN_NAME} \
-        --fp16"
-        # --bf16 True \
-        # --tf32 True \
-        # bf16 and tf32 are supported by Ampere and newer GPU architectures
+        --bf16 True \
+        --tf32 True"
+        # bf16 and tf32 are supported by Ampere and newer architectures
 
 CUDA_VISIBLE_DEVICES=0 python src/run.py ${ARGS} 2>&1 | tee logs/${RUN_NAME}.log
 

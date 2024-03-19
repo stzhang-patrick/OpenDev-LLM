@@ -1,12 +1,12 @@
-from typing import TYPE_CHECKING, Dict, Tuple
 import torch
+from typing import Tuple
 
 
 def count_parameters(model: torch.nn.Module) -> Tuple[int, int]:
     r"""
-    Returns the number of trainable parameters and the number of all parameters in a model.
+    Returns the number of trainable parameters and total parameters in a model.
     """
-    trainable_params, all_param = 0, 0
+    trainable_params, total_params = 0, 0
     for param in model.parameters():
         num_params = param.numel()
         # if using DS Zero 3 and the weights are initialized empty
@@ -17,8 +17,8 @@ def count_parameters(model: torch.nn.Module) -> Tuple[int, int]:
         if param.__class__.__name__ == "Params4bit":
             num_params = num_params * 2
 
-        all_param += num_params
+        total_params += num_params
         if param.requires_grad:
             trainable_params += num_params
 
-    return trainable_params, all_param
+    return trainable_params, total_params

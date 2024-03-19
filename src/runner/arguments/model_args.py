@@ -8,9 +8,9 @@ logger = get_logger(__name__)
 @dataclass
 class ModelArguments:
     
-    # Loading arguments
+    # Model loading arguments
     model_name_or_path: str = field(
-        default="t5-small",
+        default="Qwen/Qwen1.5-0.5B",
         metadata={
             "help": "Path to the model dir or identifier from huggingface.co/models."
         }
@@ -30,19 +30,31 @@ class ModelArguments:
     cache_dir: Optional[str] = field(
         default=None,
         metadata={
-            "help": "The directory to cache the model weights."
+            "help": "The directory to cache the model."
         }
     )
 
     # Quantization arguments
-    quantization_n_bit: Optional[int] = field(
+    load_in_8bit: Optional[bool] = field(
         default=None,
         metadata={
-            "help": "Quantize the model to the specified data type."
+            "help": "Whether to load the model in 8-bit quantization."
+        }
+    )
+    load_in_4bit: Optional[bool] = field(
+        default=None,
+        metadata={
+            "help": "Whether to load the model in 4-bit quantization."
         }
     )
     
     # Tokenizer arguments
+    tokenizer_name_or_path: Optional[str] = field(
+        default=None,
+        metadata={
+            "help": "Path to the tokenizer dir or identifier from huggingface.co/models."
+        }
+    )
     use_fast_tokenizer: Optional[bool] = field(
         default=False,
         metadata={
@@ -52,12 +64,12 @@ class ModelArguments:
 
     def __post_init__(self):
 
-        if self.quantization_n_bit is not None and self.torch_dtype is None:
+        if self.tokenizer_name_or_path is None:
+            self.tokenizer_name_or_path = self.model_name_or_path
+
+        if self.load_in_8bit is not None and self.load_in_4bit is not None:
+            raise ValueError("Only one of `load_in_8bit` or `load_in_4bit` can be set.")
+        
+        if (self.load_in_8bit is not None or self.load_in_4bit is not None) and self.torch_dtype is None:
             self.torch_dtype = torch.float16
             logger.warning("Overriding torch_dtype=None with `torch_dtype=torch. float16` due to requirements of `bitsandbytes` to enable model loading in 8-bit or 4-bit.")
-            
-        if not self.quantization_n_bit in [None, 8, 4]:
-            raise ValueError("`quantization_n_bit` can only be one of {None, 8, 4} as only 8-bit or 4-bit quantization is supported.")
-
-    def to_dict(self) -> Dict[str, Any]:
-        return asdict(self)

@@ -4,6 +4,10 @@ data/*
 
 logs
 *.log
+test.*
+wandb
+tmp_trainer
+test_output
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

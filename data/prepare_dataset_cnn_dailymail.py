@@ -11,8 +11,8 @@ from datasets import load_dataset, load_from_disk
 
 # load the dataset from the HuggingFace datasets library
 # and save it to disk
-dataset = load_dataset("cnn_dailymail", "3.0.0")
-dataset.save_to_disk(f"cnn_dailymail_hf")
+# dataset = load_dataset("cnn_dailymail", "3.0.0")
+# dataset.save_to_disk("cnn_dailymail_hf")
 
 # Load the dataset from disk
 print("Loading the dataset...")
@@ -22,8 +22,8 @@ print(dataset)
 def convert_data_format(example):
     return {
         "instruction": "Summarize the following news article.",
-        "input": example["article"],
-        "output": example["highlights"]
+        "input": example["article"].strip(),
+        "output": example["highlights"].strip()
     }
 
 # Convert the dataset to a standard format
@@ -32,6 +32,7 @@ original_columns = dataset['train'].column_names
 print(original_columns)
 dataset = dataset.map(convert_data_format)
 dataset = dataset.remove_columns(original_columns)
+dataset.save_to_disk("cnn_dailymail_hf_instruct")
 
 # Save the dataset splits as JSON files
 print("Saving the dataset splits...")

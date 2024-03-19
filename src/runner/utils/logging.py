@@ -3,7 +3,6 @@ import sys
 from typing import Optional
 import os
 from datetime import datetime, timezone, timedelta
-from termcolor import colored
 
 
 class TimeZoneFormatter(logging.Formatter):
@@ -14,7 +13,7 @@ class TimeZoneFormatter(logging.Formatter):
     """
     def __init__(self, fmt=None, datefmt=None, tz_offset=0):
         super().__init__(fmt, datefmt)
-        self.tz_offset = tz_offset  # 时区偏移量，以小时为单位
+        self.tz_offset = tz_offset
 
     def converter(self, timestamp):
         dt = datetime.fromtimestamp(timestamp, timezone.utc)
@@ -43,7 +42,6 @@ def get_logger(name: str,
     if tz_offset is None:
         tz_offset = int(os.getenv('TZ_OFFSET', 0))
 
-    # output colored log to console
     formatter = TimeZoneFormatter(
         fmt="%(asctime)s - %(levelname)s - %(name)s - %(message)s", 
         datefmt="%m/%d/%Y %H:%M:%S",
